@@ -353,6 +353,7 @@ local int construct(struct huffman *h, const short *length, int n)
     if (h->count[0] == n)               /* no codes! */
         return 0;                       /* complete, but decode() will fail */
 
+
     /* check for an over-subscribed or incomplete set of lengths */
     left = 1;                           /* one possible code of zero length */
     for (len = 1; len <= MAXBITS; len++) {
@@ -364,16 +365,18 @@ local int construct(struct huffman *h, const short *length, int n)
 
     /* generate offsets into symbol table for each length for sorting */
     offs[1] = 0;
-    for (len = 1; len < MAXBITS; len++)
+    for (len = 1; len < MAXBITS; len++) {
         offs[len + 1] = offs[len] + h->count[len];
+    }
 
     /*
      * put symbols in table sorted by length, by symbol order within each
      * length
      */
     for (symbol = 0; symbol < n; symbol++)
-        if (length[symbol] != 0)
+        if (length[symbol] != 0) {
             h->symbol[offs[length[symbol]]++] = symbol;
+        }
 
     /* return zero for complete set, positive for incomplete set */
     return left;
@@ -459,7 +462,6 @@ local int codes(struct state *s,
     /* decode literals and length/distance pairs */
     do {
         symbol = decode(s, lencode);
-        printf("SYMBOL - Length: %d\n", symbol);
         if (symbol < 0)
             return symbol;              /* invalid symbol */
         if (symbol < 256) {             /* literal: symbol is the byte */
@@ -480,7 +482,6 @@ local int codes(struct state *s,
 
             /* get and check distance */
             symbol = decode(s, distcode);
-            printf("SYMBOL - Distance: %d\n", symbol);
             if (symbol < 0)
                 return symbol;          /* invalid symbol */
             dist = dists[symbol] + bits(s, dext[symbol]);
