@@ -93,7 +93,6 @@ function codes(state) {
 
   while (symbol !== 256) {
     symbol = decode(state, state.l_huffman);
-    console.log("SYMBOL - Length: " + symbol);
 
     if (symbol < 0) {
       return symbol;    // invalid
@@ -112,13 +111,14 @@ function codes(state) {
 
     else if (symbol > 256) {
       // this is a length symbol and needs to be decoded
-      symbol -= 257;  // length symbol 0
+      symbol -= 257;  // minimum len symbol will be 257, meaning 0
 
       if (symbol >= 29) {
         return StatusCodesEnum.ERR_INVALID_LIT_LEN_DIST_CODE;
       }
-
       len = lens[symbol] + bits(state, lext[symbol]);
+
+      /* get and check distance*/
       symbol = decode(state, state.d_huffman);
       console.log("SYMBOL - Distance: " + symbol);
 
@@ -143,7 +143,7 @@ function codes(state) {
 }
 
 function gen_static_huffman_codes(state) {
-  state.l_huffman = new HuffmanTree(MAXLCODES);
+  state.l_huffman = new HuffmanTree(FIXLCODES);
   state.d_huffman = new HuffmanTree(MAXDCODES);
 
   var litlen_cl = new Uint8Array(FIXLCODES);
@@ -154,15 +154,15 @@ function gen_static_huffman_codes(state) {
     litlen_cl[i] = 8;
   }
 
-  for (let i = 145; i < 256; i++) {
+  for (let i = 144; i < 256; i++) {
     litlen_cl[i] = 9;
   }
 
-  for (let i = 257; i < 280; i++) {
+  for (let i = 256; i < 280; i++) {
     litlen_cl[i] = 7;
   }
 
-  for (let i = 281; i < FIXLCODES; i++) {
+  for (let i = 280; i < FIXLCODES; i++) {
     litlen_cl[i] = 8;
   }
 
@@ -174,9 +174,9 @@ function gen_static_huffman_codes(state) {
   state.l_huffman.gen_codes(litlen_cl);
   state.d_huffman.gen_codes(dist_cl);
 
-  codes(state);
+  // console.log(state.d_huffman);
 
-  console.log(state.output_buf);
+  codes(state);
 }
 
 class State {
@@ -214,8 +214,8 @@ class State {
 
 class HuffmanTree {
   constructor(size) {
-    this.count = new Uint8Array(size);
-    this.symbol = new Uint8Array(size);
+    this.count = new Uint32Array(MAXBITS+1);
+    this.symbol = new Uint32Array(size);
   };
 
   gen_codes(code_length_array) {
@@ -224,8 +224,11 @@ class HuffmanTree {
       this.count[code_length_array[i]]++;
     }
 
+    
+
     // No codes found - though technically a complete tree, this will fail decode
     if (this.count[0] === code_length_array.length) {
+      console.log("Found a tree of height zero");
       return 0;
     }
 
@@ -240,7 +243,7 @@ class HuffmanTree {
     }
 
     // Generate offsets into symbol table for each length for sorting
-    var offsets = new Uint8Array(MAXBITS+1);
+    var offsets = new Uint32Array(MAXBITS+1);
     offsets[1] = 0;
     for (let i = 1; i < MAXBITS; i++) {
       offsets[i+1] = offsets[i] + this.count[i];
