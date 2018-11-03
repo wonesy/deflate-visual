@@ -1,33 +1,4 @@
-
-Skip to content
-
-    Features
-    Business
-    Explore
-    Marketplace
-    Pricing
-
-Sign in or Sign up
-
-142
-1,600
-
-    921
-
-madler/zlib
-Code
-Issues 54
-Pull requests 110
-Projects 0
-Wiki
-Insights
-Join GitHub today
-
-GitHub is home to over 28 million developers working together to host and review code, manage projects, and build software together.
-zlib/contrib/puff/puff.c
-03614c5 on Oct 30, 2016
-@madler madler Fix some typos.
-841 lines (785 sloc) 37 KB
+#include <stdio.h>
 /*
  * puff.c
  * Copyright (C) 2002-2013 Mark Adler
@@ -488,6 +459,7 @@ local int codes(struct state *s,
     /* decode literals and length/distance pairs */
     do {
         symbol = decode(s, lencode);
+        printf("SYMBOL - Length: %d\n", symbol);
         if (symbol < 0)
             return symbol;              /* invalid symbol */
         if (symbol < 256) {             /* literal: symbol is the byte */
@@ -508,6 +480,7 @@ local int codes(struct state *s,
 
             /* get and check distance */
             symbol = decode(s, distcode);
+            printf("SYMBOL - Distance: %d\n", symbol);
             if (symbol < 0)
                 return symbol;          /* invalid symbol */
             dist = dists[symbol] + bits(s, dext[symbol]);
@@ -868,4 +841,3 @@ int puff(unsigned char *dest,           /* pointer to destination pointer */
     }
     return err;
 }
-

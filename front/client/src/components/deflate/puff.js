@@ -45,6 +45,32 @@ const MAXDCODES = 30;
 const MAXCODES = (MAXLCODES + MAXDCODES);
 const FIXLCODES = 288;
 
+function decode(state, huffman) {
+  let len;    // current number of bits in code
+  let code;   // len bits being decoded
+  let first;  // first code of length len
+  let count;  // number of codes of length len
+  let index;  // index of first code of length len in symbol table
+
+  code = 0;
+  first = 0;
+  index = 0;
+
+  for (len = 1; len <= MAXBITS; len++) {
+    code |= bits(state, 1);
+    count = huffman.count[len];
+    if (code - count < first) {
+      return huffman.symbol[index + (code - first)];
+    }
+    index += count;
+    first += count;
+    first <<= 1;
+    code <<= 1;
+  }
+
+  return StatusCodesEnum.ERR_INVALID_LIT_LEN_DIST_CODE;
+}
+
 function codes(state) {
   const lens = [ /* Size base for length codes 257..285 */
     3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
@@ -62,9 +88,12 @@ function codes(state) {
     12, 12, 13, 13];
 
   let symbol = 0;
+  let dist = 0;
+  let len = 0;
 
   while (symbol !== 256) {
-    symbol = decode(state);
+    symbol = decode(state, state.l_huffman);
+    console.log("SYMBOL - Length: " + symbol);
 
     if (symbol < 0) {
       return symbol;    // invalid
@@ -82,10 +111,33 @@ function codes(state) {
     }
 
     else if (symbol > 256) {
+      // this is a length symbol and needs to be decoded
       symbol -= 257;  // length symbol 0
-    }
-    else {
-      // EOB
+
+      if (symbol >= 29) {
+        return StatusCodesEnum.ERR_INVALID_LIT_LEN_DIST_CODE;
+      }
+
+      len = lens[symbol] + bits(state, lext[symbol]);
+      symbol = decode(state, state.d_huffman);
+      console.log("SYMBOL - Distance: " + symbol);
+
+      dist = dists[symbol] + bits(state, dext[symbol]);
+      if (dist > state.outcnt) {
+        return StatusCodesEnum.ERR_DISTANCE_TOO_FAR_BACK;
+      }
+
+      if (state.output_buf != null) {
+        if (state.outcnt + len > state.output_buf.length) {
+          return StatusCodesEnum.ERR_OUTPUT_SPACE_EXHAUSTED;
+        }
+
+        // copy length bytes from distance bytes back
+        while (len--) {
+          state.output_buf[state.outcnt] = state.output_buf[state.outcnt - dist];
+          state.outcnt++;
+        }
+      }
     }
   }
 }
@@ -121,6 +173,10 @@ function gen_static_huffman_codes(state) {
 
   state.l_huffman.gen_codes(litlen_cl);
   state.d_huffman.gen_codes(dist_cl);
+
+  codes(state);
+
+  console.log(state.output_buf);
 }
 
 class State {
